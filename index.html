@@ -125,9 +125,20 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        /**
+         * SANCTUARY - CORE APPLICATION LOGIC
+         * ---------------------------------
+         * Architecture: React 18 (UMD) with Tailwind CSS (Play CDN).
+         * This application follows a "No-Build" philosophy for maximum portability.
+         */
+
         const { useState, useEffect, useRef, useMemo } = React;
         
-        // --- UTILS: Procedural Audio ---
+        /**
+         * SoundEngine Utility
+         * Uses Web Audio API to generate procedural tones.
+         * Adheres to browser auto-play policies via explicit initialization.
+         */
         const SoundEngine = {
             ctx: null,
             async init() {
