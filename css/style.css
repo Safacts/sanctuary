@@ -1,0 +1,82 @@
+/* Custom styles for the Sanctuary App */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
+
+:root {
+    --sage-50: #f4f7f5;
+    --sage-500: #73997d;
+    --lavender-500: #c7b4dc;
+}
+
+body {
+    font-family: 'Outfit', sans-serif;
+    background-color: var(--sage-50);
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism utility */
+.glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Custom scrollbar for a cleaner look */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(115, 153, 125, 0.2);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(115, 153, 125, 0.4);
+}
+
+/* Message bubble transitions */
+.animate-slide-up {
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Breathing shape animation details */
+#breathing-shape {
+    box-shadow: 0 20px 50px rgba(115, 153, 125, 0.2);
+}
+
+/* Mobile-first constraints */
+@media (min-width: 640px) {
+    #root {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: #f0f4f1;
+    }
+}
+
+/* Bubble wrap "popped" state */
+.bubble.popped {
+    box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+    background: rgba(115, 153, 125, 0.1);
+}

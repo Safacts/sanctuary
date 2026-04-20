@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sanctuary | Your Digital Sanctuary</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sage: { 50: '#f4f7f5', 100: '#e3eae5', 200: '#c7d5cb', 300: '#abc1b1', 400: '#8fad97', 500: '#73997d', 600: '#5c7a64', 700: '#455c4b', 800: '#2e3d32', 900: '#171f19' },
+                        lavender: { 50: '#fbfafc', 100: '#f4f0f8', 200: '#e9e1f1', 300: '#ddd2ea', 400: '#d2c3e3', 500: '#c7b4dc', 600: '#9f90b0', 700: '#776c84', 800: '#504858', 900: '#28242c' },
+                        ocean: { 50: '#f5f7f9', 100: '#e6eaf0', 200: '#ccd6e1', 300: '#b3c1d2', 400: '#99adc3', 500: '#8099b4', 600: '#667a90', 700: '#4d5c6c', 800: '#333d48', 900: '#1a1f24' }
+                    },
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    animation: {
+                        'mesh': 'mesh 15s ease infinite',
+                        'fade-in': 'fadeIn 0.8s ease-out forwards',
+                        'slide-up': 'slideUp 0.6s ease-out forwards',
+                        'breath': 'breath 8s ease-in-out infinite',
+                        'pulse-soft': 'pulseSoft 4s ease-in-out infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        mesh: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        },
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        breath: { '0%, 100%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.05)' } },
+                        pulseSoft: { '0%, 100%': { opacity: '0.4' }, '50%': { opacity: '0.8' } },
+                        float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-10px)' } },
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React, ReactDOM, Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body { 
+            overscroll-behavior-y: contain; 
+            -webkit-tap-highlight-color: transparent; 
+            background: linear-gradient(-45deg, #f4f7f5, #fbfafc, #f5f7f9, #e3eae5);
+            background-size: 400% 400%;
+            animation: mesh 15s ease infinite;
+            min-height: 100vh;
+        }
+        .glass { 
+            background: rgba(255, 255, 255, 0.45); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255, 255, 255, 0.5); 
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
+        .bubble-active:active { transform: scale(0.92); transition: transform 0.05s; }
+        
+        canvas { touch-action: none; }
+        
+        @keyframes mesh {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .mood-btn { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .mood-btn:hover { transform: translateY(-5px) scale(1.1); }
+    </style>
+</head>
+<body class="text-ocean-900 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+        
+        // --- UTILS: Procedural Audio ---
+        const SoundEngine = {
+            ctx: null,
+            async init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    await this.ctx.resume();
+                }
+            },
+            async playPop() {
+                await this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400 + Math.random() * 200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            },
+            async playTone(freq = 200, duration = 1.5) {
+                await this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.03, this.ctx.currentTime + 0.5);
+                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            }
+        };
+
+        // --- ICONS (Inline SVG) ---
+        const IconLeaf = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 21 2c-2.5 4-3 5.5-4.1 11.2A7 7 0 0 1 11 20z"></path>
+                <path d="M11 20v-5"></path>
+            </svg>
+        );
+        const IconMessage = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+        );
+        const IconGamepad = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="6" y1="12" x2="10" y2="12"></line>
+                <line x1="8" y1="10" x2="8" y2="14"></line>
+                <circle cx="15" cy="13" r="1"></circle>
+                <circle cx="18" cy="11" r="1"></circle>
+                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+            </svg>
+        );
+        const IconWind = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M17.7 7.7A2.5 2.5 0 1 1 15.8 12H3"></path>
+                <path d="M19.3 16.3A2.5 2.5 0 1 1 17.5 20H3"></path>
+                <path d="M21 4.4A2.5 2.5 0 1 1 18.9 9H3"></path>
+            </svg>
+        );
+        const IconSettings = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+        );
+        const IconArrowLeft = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        );
+        const IconSend = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        );
+        const IconSparkles = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"></path>
+            </svg>
+        );
+
+        // --- SERVICES ---
+        const generateResponse = async (message) => {
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            const lowerMsg = message.toLowerCase();
+            if (lowerMsg.includes('hurt') || lowerMsg.includes('die') || lowerMsg.includes('suicide') || lowerMsg.includes('help me')) {
+                return "I'm hearing a lot of pain in your words. Please know that you matter. You can reach out to 988 anytime — it's a free, confidential sanctuary for when things get too dark. I'm here to stay with you while we breathe through this.";
+            }
+            const responses = [
+                "I hear you. It sounds like things have been heavy. What's been on your mind the most today?",
+                "That makes total sense. Work can be so draining. How are you feeling in your body right now?",
+                "I'm here for you. Sometimes just letting it out helps. Is there anything specific that triggered this?",
+                "Thank you for sharing that. You're handling a lot, and it's okay to feel overwhelmed. What would feel like a small 'win' for you today?",
+                "I'm listening. Take all the time you need. Your feelings are completely valid."
+            ];
+            return responses[Math.floor(Math.random() * responses.length)];
+        };
+
+        // --- COMPONENTS ---
+
+        const ZenGarden = ({ onBack }) => {
+            const canvasRef = useRef(null);
+            const [isDrawing, setIsDrawing] = useState(false);
+            
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const resize = () => {
+                    canvas.width = canvas.parentElement.clientWidth;
+                    canvas.height = canvas.parentElement.clientHeight;
+                    // Draw sand pattern
+                    ctx.fillStyle = '#e3eae5';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    // Subtle lines
+                    ctx.strokeStyle = '#c7d5cb';
+                    ctx.lineWidth = 1;
+                    for(let i=0; i<canvas.width; i+=10) {
+                        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                    }
+                };
+                resize();
+                window.addEventListener('resize', resize);
+                return () => window.removeEventListener('resize', resize);
+            }, []);
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                
+                ctx.strokeStyle = '#abc1b1';
+                ctx.lineWidth = 20;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // Outer rake effect
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.arc(x, y, 15, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner line
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            };
+
+            return (
+                <div className="flex flex-col h-full animate-fade-in p-6">
+                    <button onClick={onBack} className="flex items-center gap-2 text-sage-600 font-semibold text-sm mb-6 hover:text-sage-800 transition-colors group self-start">
+                        <IconArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back to Unwind
+                    </button>
+                    <div className="flex-1 glass-card rounded-[3rem] overflow-hidden relative cursor-crosshair shadow-inner border-white/40">
+                        <div className="absolute top-8 left-0 right-0 text-center pointer-events-none z-10">
+                            <h3 className="text-xl font-bold text-sage-700/60 uppercase tracking-widest">Digital Zen Garden</h3>
+                            <p className="text-xs text-sage-400">Rake the sand to find your center.</p>
+                        </div>
+                        <canvas 
+                            ref={canvasRef}
+                            onMouseDown={() => setIsDrawing(true)}
+                            onMouseUp={() => setIsDrawing(false)}
+                            onMouseMove={draw}
+                            onTouchStart={() => setIsDrawing(true)}
+                            onTouchEnd={() => setIsDrawing(false)}
+                            onTouchMove={draw}
+                            className="w-full h-full"
+                        />
+                    </div>
+                    <button onClick={() => {
+                        const ctx = canvasRef.current.getContext('2d');
+                        ctx.fillStyle = '#e3eae5';
+                        ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                    }} className="mt-6 px-8 py-3 glass rounded-full text-sage-600 text-sm font-bold shadow-sm hover:bg-white transition-all self-center">Smooth the Sand</button>
+                </div>
+            );
+        };
+
+        const MoodTracker = () => {
+            const moods = [
+                { emoji: '😔', label: 'Heavy', color: 'bg-ocean-100' },
+                { emoji: '😐', label: 'Meh', color: 'bg-sage-100' },
+                { emoji: '🌱', label: 'Growing', color: 'bg-sage-200' },
+                { emoji: '✨', label: 'Stable', color: 'bg-lavender-100' }
+            ];
+            return (
+                <div className="glass p-6 rounded-[2.5rem] mb-8 animate-slide-up border-white/60">
+                    <p className="text-sm font-bold text-ocean-800 mb-4 px-2">How's your energy right now?</p>
+                    <div className="flex justify-between gap-3">
+                        {moods.map((m) => (
+                            <button key={m.label} className={`flex-1 mood-btn ${m.color} p-4 rounded-3xl flex flex-col items-center gap-2 shadow-sm border-white`}>
+                                <span className="text-2xl">{m.emoji}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-ocean-700">{m.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const NavButton = ({ active, onClick, icon: Icon, label, desktop = false }) => (
+            <button 
+                onClick={onClick} 
+                className={`flex ${desktop ? 'flex-row gap-4 w-full px-6 py-4' : 'flex-col gap-1 items-center px-4'} transition-all duration-300 relative group
+                    ${active ? (desktop ? 'bg-sage-100/50 text-sage-700' : 'text-sage-600 scale-110') : 'text-sage-400 hover:text-sage-500'}`}
+            >
+                {active && !desktop && <div className="absolute -top-1 w-1 h-1 bg-sage-500 rounded-full"></div>}
+                <Icon size={desktop ? 24 : 22} className={`${active ? 'stroke-[2.5px]' : 'stroke-[2px]'}`} />
+                <span className={`${desktop ? 'text-sm font-semibold' : 'text-[10px] font-medium uppercase tracking-wider'}`}>{label}</span>
+                {active && desktop && <div className="absolute right-0 w-1 h-8 bg-sage-500 rounded-l-full animate-fade-in"></div>}
+            </button>
+        );
+
+        const ChatView = () => {
+            const [messages, setMessages] = useState([
+                { id: 1, role: 'bot', text: "Hi there. I'm Sanctuary. I'm here to listen, without judgment. How is your day truly going?" }
+            ]);
+            const [input, setInput] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+            const scrollRef = useRef(null);
+
+            useEffect(() => {
+                if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+            }, [messages, isTyping]);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!input.trim() || isTyping) return;
+                const userMsg = { id: Date.now(), role: 'user', text: input.trim() };
+                setMessages(prev => [...prev, userMsg]);
+                setInput('');
+                setIsTyping(true);
+                const botResponseText = await generateResponse(input);
+                setIsTyping(false);
+                setMessages(prev => [...prev, { id: Date.now() + 1, role: 'bot', text: botResponseText }]);
+            };
+
+            return (
+                <div className="flex flex-col h-full animate-fade-in max-w-2xl mx-auto w-full px-4">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-32">
+                        <MoodTracker />
+                        {messages.map((msg) => (
+                            <div key={msg.id} className={`flex items-end gap-3 animate-slide-up ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                                {msg.role === 'bot' && (
+                                    <div className="w-10 h-10 rounded-2xl glass flex items-center justify-center flex-shrink-0 shadow-sm border-white">
+                                        <IconLeaf size={20} className="text-sage-500" />
+                                    </div>
+                                )}
+                                <div className={`px-5 py-3.5 rounded-[1.5rem] shadow-sm text-[15px] leading-relaxed max-w-[85%] lg:max-w-[75%] ${
+                                    msg.role === 'user' ? 'bg-sage-600 text-white rounded-br-none shadow-lg shadow-sage-200' : 'glass text-ocean-800 rounded-bl-none'
+                                }`}>
+                                    {msg.text}
+                                </div>
+                            </div>
+                        ))}
+                        {isTyping && (
+                            <div className="flex items-end gap-3 animate-slide-up">
+                                <div className="w-10 h-10 rounded-2xl glass flex items-center justify-center flex-shrink-0 shadow-sm border-white"><IconLeaf size={20} className="text-sage-500" /></div>
+                                <div className="glass px-5 py-4 rounded-[1.5rem] rounded-bl-none shadow-sm flex gap-1.5 items-center">
+                                    <div className="w-1.5 h-1.5 bg-sage-300 rounded-full animate-bounce"></div>
+                                    <div className="w-1.5 h-1.5 bg-sage-300 rounded-full animate-bounce delay-100"></div>
+                                    <div className="w-1.5 h-1.5 bg-sage-300 rounded-full animate-bounce delay-200"></div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-4 absolute bottom-0 left-0 right-0 max-w-2xl mx-auto w-full z-20">
+                        <form onSubmit={handleSubmit} className="flex gap-3 glass p-2 rounded-[2.5rem] shadow-2xl border-white/80">
+                            <input 
+                                type="text" 
+                                value={input} 
+                                onChange={(e) => setInput(e.target.value)} 
+                                placeholder="Whisper your thoughts..." 
+                                className="flex-1 bg-transparent border-none rounded-full py-3.5 px-6 text-[15px] focus:outline-none placeholder-sage-400" 
+                            />
+                            <button 
+                                type="submit" 
+                                disabled={!input.trim() || isTyping} 
+                                className="bg-sage-600 hover:bg-sage-700 text-white rounded-full p-4 shadow-lg transition-all active:scale-90 disabled:opacity-50"
+                            >
+                                <IconSend size={20} />
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const DecompressionZone = () => {
+            const [game, setGame] = useState(null);
+            const [popped, setPopped] = useState(new Array(24).fill(false));
+            
+            const popBubble = (index) => {
+                if (popped[index]) return;
+                const newPopped = [...popped];
+                newPopped[index] = true;
+                setPopped(newPopped);
+                SoundEngine.playPop();
+                if (window.navigator.vibrate) window.navigator.vibrate(15);
+            };
+            
+            if (game === 'bubble') {
+                return (
+                    <div className="p-8 animate-fade-in flex flex-col h-full max-w-2xl mx-auto w-full">
+                        <button onClick={() => setGame(null)} className="flex items-center gap-2 text-sage-600 font-semibold text-sm mb-10 hover:text-sage-800 transition-colors group self-start">
+                            <IconArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back
+                        </button>
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                            <div className="text-center mb-12">
+                                <h3 className="text-2xl font-bold text-ocean-900 mb-2">Bubble Wrap</h3>
+                                <p className="text-ocean-400 text-sm">Quiet the noise by popping away.</p>
+                            </div>
+                            <div className="grid grid-cols-4 gap-6 p-10 glass-card rounded-[3.5rem] shadow-inner border-white/40">
+                                {popped.map((isP, i) => (
+                                    <button 
+                                        key={i} 
+                                        onClick={() => popBubble(i)} 
+                                        className={`w-14 h-14 rounded-full transition-all duration-300 relative bubble-active ${isP ? 'bg-sage-50/50 shadow-inner scale-90 opacity-20' : 'bg-white shadow-xl hover:scale-105 border-2 border-white'}`}
+                                    >
+                                        {!isP && <div className="absolute top-2 left-2 w-3 h-3 bg-white rounded-full opacity-70 blur-[1px]"></div>}
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setPopped(new Array(24).fill(false))} className="mt-12 px-10 py-4 glass border-white rounded-full text-sage-600 text-sm font-bold shadow-md hover:bg-white/60 transition-all active:scale-95">New Sheet</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (game === 'zen') {
+                return <ZenGarden onBack={() => setGame(null)} />;
+            }
+            
+            return (
+                <div className="p-10 animate-fade-in max-w-4xl mx-auto w-full">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl font-bold text-ocean-900 mb-4 tracking-tight">The Unwind Room</h2>
+                        <p className="text-ocean-500 max-w-md mx-auto leading-relaxed">Two tiny worlds designed to pull you out of your head and into the present moment.</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div onClick={() => setGame('bubble')} className="glass p-10 rounded-[3.5rem] shadow-sm border-white/60 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><IconGamepad size={120} /></div>
+                            <div className="flex flex-col items-center text-center gap-6 relative z-10">
+                                <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-lavender-200 to-lavender-400 flex items-center justify-center text-white shadow-xl group-hover:rotate-6 transition-transform">
+                                    <IconGamepad size={36} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-ocean-800 mb-2">Digital Bubble Wrap</h3>
+                                    <p className="text-sm text-ocean-500 leading-relaxed px-4">Tactile satisfaction for your fingers and mind.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div onClick={() => setGame('zen')} className="glass p-10 rounded-[3.5rem] shadow-sm border-white/60 hover:shadow-2xl hover:-translate-y-2 transition-all cursor-pointer group relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><IconSparkles size={120} /></div>
+                            <div className="flex flex-col items-center text-center gap-6 relative z-10">
+                                <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-sage-200 to-sage-400 flex items-center justify-center text-white shadow-xl group-hover:-rotate-6 transition-transform">
+                                    <IconSparkles size={36} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-ocean-800 mb-2">Zen Garden</h3>
+                                    <p className="text-sm text-ocean-500 leading-relaxed px-4">Interactive sand raking. A moment of pure flow.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ResetRoom = () => {
+            const [isB, setIsB] = useState(false);
+            const [state, setState] = useState('READY');
+            const timer = useRef(null);
+            
+            const toggle = () => {
+                if (isB) { 
+                    setIsB(false); 
+                    setState('READY'); 
+                    clearInterval(timer.current); 
+                } else {
+                    SoundEngine.playTone(150, 2);
+                    setIsB(true);
+                    const cycle = [{ t: 'INHALE' }, { t: 'HOLD' }, { t: 'EXHALE' }, { t: 'HOLD' }];
+                    let i = 0;
+                    const run = () => { 
+                        setState(cycle[i].t); 
+                        i = (i + 1) % cycle.length; 
+                    };
+                    run(); 
+                    timer.current = setInterval(run, 4000);
+                }
+            };
+            
+            return (
+                <div className="p-10 animate-fade-in overflow-y-auto h-full max-w-4xl mx-auto w-full">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl font-bold text-ocean-900 mb-4 tracking-tight">The Reset Room</h2>
+                        <p className="text-ocean-500 max-w-md mx-auto leading-relaxed">Simple, biological tools to drop your heart rate and reclaim your focus.</p>
+                    </div>
+                    <div className="glass p-12 rounded-[4rem] shadow-2xl border-white/80 flex flex-col items-center max-w-xl mx-auto mb-16 relative overflow-hidden group">
+                        {isB && <div className="absolute inset-0 bg-sage-100/30 animate-pulse-soft"></div>}
+                        <h3 className="font-bold text-ocean-800 mb-2 text-xl relative z-10 group-hover:scale-110 transition-transform">Box Breathing</h3>
+                        <p className="text-[10px] text-ocean-400 mb-16 uppercase tracking-[0.3em] relative z-10 font-bold">Scientific 4-4-4-4 rhythm</p>
+                        
+                        <div className="relative w-72 h-72 flex items-center justify-center mb-20">
+                            <div className={`absolute inset-0 bg-sage-200/40 rounded-full transition-all duration-[4000ms] ease-in-out ${isB ? (state === 'INHALE' || state === 'HOLD' ? 'scale-125 opacity-40 blur-2xl' : 'scale-90 opacity-10 blur-md') : 'scale-100 opacity-20'}`}></div>
+                            <div className={`absolute inset-0 border-[3px] border-dashed border-sage-300/40 rounded-full transition-all duration-[8000ms] linear ${isB ? 'rotate-180' : ''}`}></div>
+                            
+                            <div className={`w-40 h-40 rounded-[3.5rem] bg-gradient-to-tr from-sage-500 to-lavender-400 shadow-[0_20px_50px_rgba(115,153,125,0.3)] flex items-center justify-center text-white font-bold tracking-[0.25em] text-xs transition-all duration-[4000ms] ease-in-out relative z-10 ${isB ? (state === 'INHALE' || state === 'HOLD' ? 'scale-[1.8] rotate-90' : 'scale-100 rotate-0') : 'scale-100'}`}>
+                                <div className="absolute inset-0 bg-white/20 rounded-[3.5rem] animate-pulse"></div>
+                                <span className="relative z-20 drop-shadow-md">{state}</span>
+                            </div>
+                        </div>
+                        
+                        <button 
+                            onClick={toggle} 
+                            className={`w-full py-5 rounded-[2.5rem] font-bold text-xs tracking-[0.2em] uppercase shadow-2xl transition-all active:scale-95 relative z-10 ${isB ? 'bg-lavender-500 text-white hover:bg-lavender-600' : 'bg-sage-600 text-white hover:bg-sage-700'}`}
+                        >
+                            {isB ? 'End Session' : 'Begin Exercise'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [tab, setTab] = useState('chat');
+            const [audioStarted, setAudioStarted] = useState(false);
+            
+            const handleInteraction = () => {
+                if (!audioStarted) {
+                    SoundEngine.init();
+                    setAudioStarted(true);
+                }
+            };
+
+            const dailyQuote = useMemo(() => {
+                const quotes = [
+                    "You are allowed to be both a masterpiece and a work in progress.",
+                    "The world can wait for two minutes while you breathe.",
+                    "Be as kind to yourself as you are to your friends.",
+                    "Growth is quiet. You're doing better than you think.",
+                    "You don't have to carry it all today."
+                ];
+                return quotes[new Date().getDay() % quotes.length];
+            }, []);
+            
+            const render = () => {
+                if (tab === 'chat') return <ChatView />;
+                if (tab === 'games') return <DecompressionZone />;
+                if (tab === 'exercises') return <ResetRoom />;
+            };
+            
+            return (
+                <div onClick={handleInteraction} className="flex flex-col md:flex-row h-screen overflow-hidden">
+                    {/* Desktop Sidebar */}
+                    <aside className="hidden md:flex flex-col w-80 glass border-r border-white/60 z-30 shadow-2xl">
+                        <div className="p-10 flex-1">
+                            <div className="flex items-center gap-3 mb-16 animate-float">
+                                <div className="w-12 h-12 rounded-[1.5rem] bg-gradient-to-tr from-sage-500 to-lavender-400 flex items-center justify-center shadow-[0_10px_30px_rgba(115,153,125,0.4)]"><IconLeaf size={24} className="text-white" /></div>
+                                <h1 className="text-2xl font-bold tracking-tight text-sage-800">sanctuary</h1>
+                            </div>
+                            <nav className="space-y-4">
+                                <NavButton active={tab === 'chat'} onClick={() => setTab('chat')} icon={IconMessage} label="Compassion Chat" desktop />
+                                <NavButton active={tab === 'games'} onClick={() => setTab('games')} icon={IconGamepad} label="Unwind Room" desktop />
+                                <NavButton active={tab === 'exercises'} onClick={() => setTab('exercises')} icon={IconWind} label="Biometric Reset" desktop />
+                            </nav>
+                            
+                            <div className="mt-16 p-8 glass-card rounded-[2.5rem] border-white/40">
+                                <p className="text-[10px] uppercase font-bold tracking-widest text-sage-500 mb-4">Today's Insight</p>
+                                <p className="text-sm italic text-ocean-700 leading-relaxed">"{dailyQuote}"</p>
+                            </div>
+                        </div>
+                        <div className="p-10">
+                            <button className="flex items-center gap-4 text-sage-400 hover:text-sage-600 transition-colors font-semibold text-sm px-4">
+                                <IconSettings size={20} />
+                                <span>Preferences</span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* Mobile Header */}
+                    <header className="md:hidden pt-8 pb-4 px-6 glass sticky top-0 z-30 flex justify-between items-center border-b border-white/40 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-sage-500 to-lavender-400 flex items-center justify-center shadow-lg"><IconLeaf size={20} className="text-white" /></div>
+                            <h1 className="text-xl font-bold tracking-tight text-sage-800">sanctuary</h1>
+                        </div>
+                        <button className="text-sage-400 p-2"><IconSettings size={22} /></button>
+                    </header>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 overflow-hidden relative flex flex-col">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {render()}
+                        </div>
+                    </main>
+
+                    {/* Mobile Navigation */}
+                    <nav className="md:hidden glass border-t border-white/60 safe-bottom z-30 h-24 flex justify-around items-center px-6 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
+                        <NavButton active={tab === 'chat'} onClick={() => setTab('chat')} icon={IconMessage} label="Chat" />
+                        <NavButton active={tab === 'games'} onClick={() => setTab('games')} icon={IconGamepad} label="Unwind" />
+                        <NavButton active={tab === 'exercises'} onClick={() => setTab('exercises')} icon={IconWind} label="Reset" />
+                    </nav>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
